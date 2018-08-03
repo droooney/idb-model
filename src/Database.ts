@@ -53,6 +53,8 @@ export class Database<M extends IDBTransactionAllowedMode = 'readonly'> {
     currentVersionEntry: Version | null,
     migrations: Migration[]
   ): Promise<void> {
+    this.close();
+
     const request = indexedDB.open(this.name, oldDBVersion + 1);
 
     await new Promise<void>((resolve, reject) => {
@@ -61,23 +63,22 @@ export class Database<M extends IDBTransactionAllowedMode = 'readonly'> {
       request.onupgradeneeded = () => {
         upgrading = true;
 
-        if (this.connection) {
-          this.connection.close();
-        }
-
         const connection = this.connection = request.result;
 
         if (!connection) {
           return reject(new Error('Unable to open database'));
         }
 
-        resolve((async () => {
+        const transaction = request.transaction as IDBVersionChangeTransaction;
+
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+
+        (async () => {
           const transaction = request.transaction as IDBVersionChangeTransaction;
           const oldVersion = currentVersionEntry
             ? currentVersionEntry.version
             : -1;
-
-          this.model(Version);
 
           for (let i = oldVersion + 1, length = migrations.length; i < length; i++) {
             await migrations[i](connection, transaction);
@@ -90,15 +91,11 @@ export class Database<M extends IDBTransactionAllowedMode = 'readonly'> {
 
             await currentVersionEntry.save({ transaction });
           }
-        })());
+        })();
       };
 
       request.addEventListener('success', () => {
         if (!upgrading) {
-          if (this.connection) {
-            this.connection.close();
-          }
-
           this.connection = request.result;
 
           if (!this.connection) {
@@ -148,6 +145,8 @@ export class Database<M extends IDBTransactionAllowedMode = 'readonly'> {
     if (this.connection) {
       this.connection.close();
     }
+
+    this.connection = undefined;
   }
 
   public async delete(): Promise<void> {
@@ -167,31 +166,29 @@ export class Database<M extends IDBTransactionAllowedMode = 'readonly'> {
   }
 
   public async migrate(migrations: Migration[]): Promise<void> {
+    this.model(Version);
+
     this.connection = await this._openDatabase();
 
     const hasVersionObjectStore = this.connection.objectStoreNames.contains(VERSION_OBJECT_STORE_NAME);
     let currentVersionEntry: Version | null = null;
 
     if (hasVersionObjectStore) {
-      currentVersionEntry = await Version.findById(1);
+      currentVersionEntry = await Version.findByPrimary(1);
     }
 
-    migrations = [
-      versionMigration,
-      ...migrations
-    ];
-
-    if (!currentVersionEntry || currentVersionEntry.version !== migrations.length + 1) {
-      await this._applyMigrations(this.connection.version, currentVersionEntry, migrations);
+    if (!currentVersionEntry || currentVersionEntry.version !== migrations.length) {
+      await this._applyMigrations(this.connection.version, currentVersionEntry, [
+        versionMigration,
+        ...migrations
+      ]);
     }
   }
 
-  public model<T, M extends Model<T, U>, U extends keyof T = never>(
-    model: ModelClass<T, M, U>
-  ): ModelClass<T, M, U> {
+  public model<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    model: ModelClass<T, M, P, U>
+  ): void {
     model.db = this;
-
-    return model;
   }
 
   public async transaction<K extends IDBTransactionAllowedMode | null | undefined, ReturnValue = void>(

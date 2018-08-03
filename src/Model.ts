@@ -4,7 +4,7 @@ import {
   IDBAnyTransaction,
   IDBWritableTransaction
 } from './Database';
-import { Optional, Diff, MaybePromise } from './types';
+import { Optional, MaybePromise } from './types';
 
 import { assign } from './utils/assign';
 import { getProto } from './utils/getProto';
@@ -39,54 +39,53 @@ export interface CountOptions extends CommonOptions<IDBAnyTransaction> {}
 
 export interface SaveOptions extends CommonOptions<IDBWritableTransaction> {}
 
-export interface DeleteOptions extends CommonOptions<IDBWritableTransaction> {}
+export interface DeleteOptions extends CommonOptions<IDBWritableTransaction> {
+  deletePrimary?: boolean;
+}
+
+export interface UpdateOptions extends CommonOptions<IDBWritableTransaction> {}
 
 // eslint-disable-next-line space-infix-ops
-export type ModelClass<T, M extends Model<T, U>, U extends keyof T = never> = {
+export type ModelClass<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never> = {
   new(values: Values<T, U>): M;
   modelName: string;
+  primaryKey: P;
   db: AnyDatabase;
-  defaultValues?: T extends { id: number; }
-    ? Pick<T, Diff<U, 'id'>> & { id?: number; }
-    : T extends { id: string; }
-      ? Pick<T, Diff<U, 'id'>> & { id?: string; }
-      : Pick<T, U>;
+  defaultValues?: P extends U
+    ? Optional<Pick<T, U>, P>
+    : Pick<T, U>;
   fields: string[];
 };
 
-export class Model<T, U extends keyof T = never> {
+type ModelPrivateFields = (
+  '_transaction'
+  | '_delete'
+  | '_update'
+);
+
+export class Model<T extends { [key in P]: number | string }, P extends keyof T, U extends keyof T = never> {
   public static modelName?: string;
+  public static primaryKey?: string;
   public static db: AnyDatabase;
   public static defaultValues?: object;
   public static fields?: string[];
 
-  public static _buildFromDatabase<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
-    values: Values<T, U>
-  ): M {
-    const instance = (this as any).build(values) as M;
-
-    instance._fromDatabase = true;
-
-    return instance;
-  }
-
-  public static build<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
+  public static build<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
     values: Values<T, U>
   ): M {
     return new this(values);
   }
 
-  public static bulkBuild<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
+  public static bulkBuild<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
     values: Values<T, U>[]
   ): M[] {
     return values.map((values) => new this(values));
   }
 
-  public static bulkCreate<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
+  public static bulkCreate<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
     values: Values<T, U>[],
     options: CreateOptions = {}
   ): Promise<M[]> {
@@ -99,8 +98,8 @@ export class Model<T, U extends keyof T = never> {
     ));
   }
 
-  public static bulkDelete<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
+  public static bulkDelete<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
     items: M[],
     options: DeleteOptions = {}
   ): Promise<M[]> {
@@ -113,8 +112,8 @@ export class Model<T, U extends keyof T = never> {
     ));
   }
 
-  public static bulkSave<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
+  public static bulkSave<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
     items: M[],
     options: SaveOptions = {}
   ): Promise<M[]> {
@@ -127,17 +126,17 @@ export class Model<T, U extends keyof T = never> {
     ));
   }
 
-  public static async clear<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
+  public static async clear<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
     options: ClearOptions = {}
   ): Promise<void> {
-    await this.db._useOrCreateTransaction(options.transaction, this.modelName, 'readonly', (transaction) => (
+    await this.db._useOrCreateTransaction(options.transaction, this.modelName, 'readwrite', (transaction) => (
       this.db.request(transaction.objectStore(this.modelName).clear())
     ));
   }
 
-  public static count<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
+  public static count<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
     options: CountOptions = {}
   ): Promise<number> {
     return this.db._useOrCreateTransaction(options.transaction, this.modelName, 'readonly', (transaction) => (
@@ -145,8 +144,8 @@ export class Model<T, U extends keyof T = never> {
     ));
   }
 
-  public static create<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
+  public static create<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
     values: Values<T, U>,
     options: CreateOptions = {}
   ): Promise<M> {
@@ -155,49 +154,62 @@ export class Model<T, U extends keyof T = never> {
     });
   }
 
-  public static async findAll<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
-    filter?: (item: M) => boolean | any,
+  public static async delete<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    filter?: ((item: M) => boolean | any) | null | undefined,
+    options: DeleteOptions = {}
+  ): Promise<M[]> {
+    return this.db._useOrCreateTransaction(options.transaction, this.modelName, 'readwrite', async (transaction) => {
+      return (this as any).bulkDelete(await (this as any).findAll(filter, { transaction }), { transaction });
+    });
+  }
+
+  public static async findAll<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    filter?: ((item: M) => boolean | any) | null | undefined,
     options: FindOptions = {}
   ): Promise<M[]> {
     return this.db._useOrCreateTransaction(options.transaction, this.modelName, 'readonly', async (transaction) => {
+      const instances: M[] = [];
       const objectStore = transaction.objectStore(this.modelName);
 
-      if (!filter) {
-        return this.db.request<M[]>(objectStore.getAll(), []);
-      }
+      if (filter) {
+        await new Promise<void>((resolve, reject) => {
+          const cursorRequest = objectStore.openCursor();
 
-      const instances: M[] = [];
+          cursorRequest.onsuccess = () => {
+            const cursor: IDBCursorWithValue | undefined = cursorRequest.result;
 
-      await new Promise<void>((resolve, reject) => {
-        const cursorRequest = objectStore.openCursor();
+            if (cursor) {
+              const instance = (this as any).build(cursor.value) as M;
 
-        cursorRequest.onsuccess = () => {
-          const cursor: IDBCursorWithValue | undefined = cursorRequest.result;
+              if (filter(instance)) {
+                instances.push(instance);
+              }
 
-          if (cursor) {
-            const instance = (this as any)._buildFromDatabase(cursor.value) as M;
-
-            if (filter(instance)) {
-              instances.push(instance);
+              cursor.continue();
+            } else {
+              resolve();
             }
-          } else {
-            resolve();
-          }
-        };
+          };
 
-        cursorRequest.onerror = () => {
-          reject(cursorRequest.error);
-        };
-      });
+          cursorRequest.onerror = () => {
+            reject(cursorRequest.error);
+          };
+        });
+      } else {
+        (await this.db.request<M[]>(objectStore.getAll(), [])).forEach((item) => {
+          instances.push((this as any).build(item) as M);
+        });
+      }
 
       return instances;
     });
   }
 
-  public static async findOne<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
-    filter: ((item: M) => boolean | any) | null | undefined,
+  public static async findOne<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    filter?: ((item: M) => boolean | any) | null | undefined,
     options: FindOptions = {}
   ): Promise<M | null> {
     const eventualFilter = filter || (() => true);
@@ -212,12 +224,14 @@ export class Model<T, U extends keyof T = never> {
           const cursor: IDBCursorWithValue | undefined = cursorRequest.result;
 
           if (cursor) {
-            const item = (this as any)._buildFromDatabase(cursor.value) as M;
+            const item = (this as any).build(cursor.value) as M;
 
             if (eventualFilter(item)) {
               instance = item;
 
               resolve();
+            } else {
+              cursor.continue();
             }
           } else {
             resolve();
@@ -233,20 +247,20 @@ export class Model<T, U extends keyof T = never> {
     });
   }
 
-  public static async findById<T, S extends number | string, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
-    id: T extends { id: S; } ? S : never,
+  public static async findByPrimary<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    primary: T[P],
     options: FindOptions = {}
   ): Promise<M | null> {
     const instance = await this.db._useOrCreateTransaction(options.transaction, this.modelName, 'readonly', (transaction) => (
-      this.db.request<M | null>(transaction.objectStore(this.modelName).get(id), null)
+      this.db.request<M | null>(transaction.objectStore(this.modelName).get(primary), null)
     ));
 
-    return instance && ((this as any)._buildFromDatabase(instance as M) as M);
+    return instance && ((this as any).build(instance as M) as M);
   }
 
-  public static async *records<T, M extends Model<T, U>, U extends keyof T = never>(
-    this: ModelClass<T, M, U>,
+  public static async *records<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
     options: RecordsOptions = {}
   ): AsyncIterable<M> {
     const {
@@ -256,7 +270,7 @@ export class Model<T, U extends keyof T = never> {
     let prevItem: M | undefined;
     let cursor: IDBCursorWithValue | undefined;
     let gotNextItem: () => void;
-    let throwError: (err: Error) => void;
+    let throwError: (err: any) => void;
     const openCursor = () => {
       const cursorRequest = transaction.objectStore(this.modelName).openCursor();
 
@@ -297,17 +311,14 @@ export class Model<T, U extends keyof T = never> {
       });
 
       if (cursor && cursor.value) {
-        prevItem = (this as any)._buildFromDatabase(cursor.value) as M;
-
-        prevItem._transaction = transaction as IDBWritableTransaction;
-
-        prevItem._update = async (item) => {
+        prevItem = (this as any).build(cursor.value) as M;
+        prevItem._setPrivateField('_transaction', transaction as IDBWritableTransaction);
+        prevItem._setPrivateField('_update', async (item) => {
           await this.db.request(cursor!.update(item));
-        };
-
-        prevItem._delete = async () => {
+        });
+        prevItem._setPrivateField('_delete', async () => {
           await this.db.request(cursor!.delete());
-        };
+        });
 
         yield prevItem;
       } else {
@@ -316,7 +327,27 @@ export class Model<T, U extends keyof T = never> {
     }
   }
 
-  private _fromDatabase?: boolean;
+  public static async update<T extends { [key in P]: number | string }, K extends keyof T, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    values: Pick<T, K> | ((item: M) => void),
+    filter?: ((item: M) => boolean | any) | null | undefined,
+    options: UpdateOptions = {}
+  ): Promise<M[]> {
+    return this.db._useOrCreateTransaction(options.transaction, this.modelName, 'readwrite', async (transaction) => {
+      const instances = (await (this as any).findAll(filter, { transaction })) as M[];
+
+      instances.forEach((instance) => {
+        if (typeof values === 'function') {
+          values(instance);
+        } else {
+          assign(instance, values as any);
+        }
+      });
+
+      return (this as any).bulkSave(instances, { transaction });
+    });
+  }
+
   private _transaction?: IDBWritableTransaction;
   private _delete?(): Promise<void>;
   private _update?(item: Pick<this, keyof this>): Promise<void>;
@@ -335,12 +366,26 @@ export class Model<T, U extends keyof T = never> {
     return pick(this, this._getModel().fields as (keyof this)[]);
   }
 
-  private _getModel(): ModelClass<T, Model<T, U>, U> {
+  private _getModel(): ModelClass<T, Model<T, P, U>, P, U> {
     return getProto(this).constructor;
   }
 
   private _getModelName(): string {
     return this._getModel().modelName;
+  }
+
+  private _getPrimaryKey(): P {
+    return this._getModel().primaryKey;
+  }
+
+  // @ts-ignore
+  private _setPrivateField<T extends ModelPrivateFields>(field: T, value: this[T]): void {
+    Object.defineProperty(this, field, {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value
+    });
   }
 
   // @ts-ignore
@@ -350,9 +395,14 @@ export class Model<T, U extends keyof T = never> {
   public async beforeSave(transaction: IDBWritableTransaction): MaybePromise<void> {}
 
   public async delete(options: DeleteOptions = {}): Promise<this> {
-    if ((!this._delete || !this._transaction) && !('id' in this)) {
+    if ((!this._delete || !this._transaction) && !(this._getPrimaryKey() in this)) {
       return this;
     }
+
+    const {
+      deletePrimary = true
+    } = options;
+    const primaryKey = this._getPrimaryKey();
 
     if (this._delete && this._transaction) {
       if (this.beforeDelete !== Model.prototype.beforeDelete) {
@@ -369,17 +419,15 @@ export class Model<T, U extends keyof T = never> {
           await this.beforeDelete(transaction);
         }
 
-        await db.request(transaction.objectStore(modelName).delete((this as any).id));
+        await db.request(transaction.objectStore(modelName).delete((this as any as T)[primaryKey]));
       });
     }
 
-    this._fromDatabase = false;
+    if (deletePrimary) {
+      delete (this as any as T)[primaryKey];
+    }
 
     return this;
-  }
-
-  public isFromDatabase(): boolean {
-    return !!this._fromDatabase;
   }
 
   public async save(options: SaveOptions = {}): Promise<this> {
@@ -398,13 +446,14 @@ export class Model<T, U extends keyof T = never> {
           await this.beforeSave(transaction);
         }
 
-        await db.request(
-          transaction.objectStore(modelName)[this._fromDatabase ? 'put' : 'add'](this._getDatabaseFields()), null
-        );
+        const primaryKey = this._getPrimaryKey();
+        const item = this._getDatabaseFields();
+
+        (this as any as T)[primaryKey] = (await db.request<T[P]>(
+          transaction.objectStore(modelName)[primaryKey in this ? 'put' : 'add'](item)
+        ))!;
       });
     }
-
-    this._fromDatabase = true;
 
     return this;
   }

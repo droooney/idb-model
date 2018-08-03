@@ -3,7 +3,10 @@
   "version": "0.0.1",
   "description": "IndexedDB wrapper",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "lint": "eslint **/*.ts",
+    "watch": "tsc rollup.config.dev.ts -m esnext -t esnext --moduleResolution node --typeRoots ./node_modules/@types,./app/typings && rollup --watch -c rollup.config.dev.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/droooney/idb-model.git"
@@ -19,7 +22,9 @@
   "devDependencies": {
     "eslint": "^5.2.0",
     "eslint-plugin-typescript": "^0.12.0",
+    "rollup": "^0.63.5",
+    "rollup-plugin-typescript2": "^0.16.1",
     "typescript": "^2.9.2",
-    "typescript-eslint-parser": "^16.0.1"
+    "typescript-eslint-parser": "^17.0.1"
   }
 }

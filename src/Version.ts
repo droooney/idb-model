@@ -20,7 +20,8 @@ interface IVersion {
 // eslint-disable-next-line no-use-before-define
 export interface Version extends IVersion {}
 
-export class Version extends Model<IVersion> {
+export class Version extends Model<IVersion, 'id'> {
   static modelName = VERSION_OBJECT_STORE_NAME;
+  static primaryKey = 'id' as 'id';
   static fields = ['id', 'version'];
 }
