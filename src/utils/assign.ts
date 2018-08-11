@@ -6,6 +6,7 @@ export function assign<T>(target: T, ...objects: (Partial<T> | undefined)[]): T 
 
     if (object) {
       for (const key in object) {
+        /* istanbul ignore else */
         if (hasOwnProperty.call(object, key)) {
           (target as any)[key] = object[key];
         }

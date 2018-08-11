@@ -1,5 +1,9 @@
-import { RollupWatchOptions, Plugin } from 'rollup';
-import ts from 'rollup-plugin-typescript2';
+/* eslint-disable spaced-comment */
+///<reference path="./src/typings/rollup-plugin-typescript2.d.ts" />
+/* eslint-enable spaced-comment */
+
+import { RollupWatchOptions } from 'rollup';
+import ts = require('rollup-plugin-typescript2');
 
 const config: RollupWatchOptions = {
   input: 'entry.ts',
@@ -9,11 +13,18 @@ const config: RollupWatchOptions = {
     sourcemap: true
   },
   plugins: [
-    ts() as Plugin
+    ts({
+      clean: true,
+      tsconfigOverride: {
+        compilerOptions: {
+          module: 'esnext'
+        }
+      }
+    })
   ],
   watch: {
     include: ['src/**/*.ts', 'entry.ts']
   }
 };
 
-export default config;
+module.exports = config;

@@ -1,5 +1,9 @@
 import { Model, ModelClass } from './Model';
 import { Version, VERSION_OBJECT_STORE_NAME, versionMigration } from './Version';
+
+import { promiseTry } from './utils/promiseTry';
+import { promisifyRequest } from './utils/promisifyRequest';
+
 import { MaybePromise } from './types';
 
 export type IDBTransactionAllowedMode = 'readonly' | 'readwrite';
@@ -10,7 +14,7 @@ export interface DatabaseOptions<M> {
   onVersionChange?(this: IDBDatabase, ev: Event): any;
 }
 
-export type Migration = (db: IDBDatabase, transaction: IDBVersionChangeTransaction) => MaybePromise<void>;
+export type Migration = (db: IDBDatabase, transaction: IDBVersionChangeTransaction) => any;
 
 export interface IDBReadOnlyTransaction extends IDBTransaction {
   mode: 'readonly';
@@ -48,94 +52,75 @@ export class Database<M extends IDBTransactionAllowedMode = 'readonly'> {
     this.onVersionChange = options.onVersionChange || null;
   }
 
-  private async _applyMigrations(
+  private _applyMigrations(
     oldDBVersion: number,
     currentVersionEntry: Version | null,
     migrations: Migration[]
   ): Promise<void> {
-    this.close();
+    return new Promise<void>((resolve, reject) => {
+      this.close();
 
-    const request = indexedDB.open(this.name, oldDBVersion + 1);
+      const request = indexedDB.open(this.name, oldDBVersion + 1);
 
-    await new Promise<void>((resolve, reject) => {
-      let upgrading: boolean = false;
+      request.onblocked = this.onBlocked;
 
       request.onupgradeneeded = () => {
-        upgrading = true;
-
         const connection = this.connection = request.result;
 
+        /* istanbul ignore if */
         if (!connection) {
           return reject(new Error('Unable to open database'));
         }
 
+        connection.onversionchange = this.onVersionChange;
+
         const transaction = request.transaction as IDBVersionChangeTransaction;
 
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
+        transaction.addEventListener('complete', () => resolve());
+        transaction.addEventListener('abort', () => reject(transaction.error));
 
-        (async () => {
-          const transaction = request.transaction as IDBVersionChangeTransaction;
-          const oldVersion = currentVersionEntry
-            ? currentVersionEntry.version
-            : -1;
+        const oldVersion = currentVersionEntry
+          ? currentVersionEntry.version
+          : -1;
+        let migrationsPromise: Promise<any> = Promise.resolve();
 
-          for (let i = oldVersion + 1, length = migrations.length; i < length; i++) {
-            await migrations[i](connection, transaction);
+        migrations.slice(oldVersion + 1).forEach((migration, i) => {
+          i = oldVersion + 1 + i;
 
-            if (!currentVersionEntry) {
-              currentVersionEntry = new Version({ id: 1, version: 0 });
-            }
+          migrationsPromise = migrationsPromise
+            .then(() => migration(connection, transaction))
+            .then(() => {
+              if (!currentVersionEntry) {
+                currentVersionEntry = new Version({ id: 1, version: 0 });
+              }
 
-            currentVersionEntry.version = i;
+              currentVersionEntry.version = i;
 
-            await currentVersionEntry.save({ transaction });
-          }
-        })();
+              return currentVersionEntry.save({ transaction });
+            });
+        });
+
+        migrationsPromise.catch(reject);
       };
-
-      request.addEventListener('success', () => {
-        if (!upgrading) {
-          this.connection = request.result;
-
-          if (!this.connection) {
-            return reject(new Error('Unable to open database'));
-          }
-
-          resolve();
-        }
-      });
     });
   }
 
-  private async _openDatabase(version?: number): Promise<IDBDatabase> {
+  private _executeWithConnection<R>(callback: (connection: IDBDatabase) => Promise<R>): Promise<R> {
     if (this.connection) {
-      this.connection.close();
+      return callback(this.connection);
     }
 
-    const request = indexedDB.open(this.name, version);
-
-    request.onblocked = this.onBlocked;
-
-    const connection = await this.request<IDBDatabase>(request);
-
-    if (!connection) {
-      throw new Error('Unable to open database');
-    }
-
-    connection.onversionchange = this.onVersionChange;
-
-    return connection;
+    return this.getConnection().then((connection) => callback(connection));
   }
 
-  public async _useOrCreateTransaction<K extends IDBTransactionAllowedMode | null | undefined, T extends IDBAnyTransaction | undefined, ReturnValue = void>(
+  public _useOrCreateTransaction<K extends IDBTransactionAllowedMode, T extends IDBAnyTransaction | undefined, R = void>(
     transaction: T,
     store: string | string[],
     mode: K,
-    callback: (transaction: T extends IDBAnyTransaction ? T : K extends IDBTransactionAllowedMode ? IDBTransactionMap[K] : IDBTransactionMap[M]) => ReturnValue | Promise<ReturnValue>
-  ): Promise<ReturnValue> {
+    callback: (transaction: T extends IDBAnyTransaction ? T : IDBTransactionMap[K]) => MaybePromise<R>
+  ): Promise<R> {
     if (transaction) {
-      return callback(transaction as any);
+      return promiseTry(() => callback(transaction as any));
     }
 
     return this.transaction(store, mode, callback as any) as any;
@@ -149,88 +134,102 @@ export class Database<M extends IDBTransactionAllowedMode = 'readonly'> {
     this.connection = undefined;
   }
 
-  public async delete(): Promise<void> {
+  public delete(): Promise<void> {
+    return promiseTry(() => {
+      this.close();
+
+      return promisifyRequest(indexedDB.deleteDatabase(this.name));
+    });
+  }
+
+  public getConnection(): Promise<IDBDatabase> {
     if (this.connection) {
-      this.connection = undefined;
+      return Promise.resolve(this.connection);
     }
 
-    await this.request(indexedDB.deleteDatabase(this.name));
+    return new Promise<IDBDatabase | undefined>((resolve) => {
+      const request = indexedDB.open(this.name);
+
+      request.onblocked = this.onBlocked;
+
+      resolve(promisifyRequest<IDBDatabase>(request));
+    }).then((connection) => {
+      /* istanbul ignore if */
+      if (!connection) {
+        throw new Error('Unable to open database');
+      }
+
+      connection.onversionchange = this.onVersionChange;
+
+      this.connection = connection;
+
+      return connection;
+    });
   }
 
-  public async getConnection(): Promise<IDBDatabase> {
-    if (!this.connection) {
-      this.connection = await this._openDatabase();
-    }
+  public migrate(migrations: Migration[]): Promise<void> {
+    return this._executeWithConnection((connection) => promiseTry(() => (
+      promiseTry(() => {
+        this.model(Version);
 
-    return this.connection;
+        const hasVersionObjectStore = connection.objectStoreNames.contains(VERSION_OBJECT_STORE_NAME);
+
+        if (hasVersionObjectStore) {
+          return Version.findByPrimary(1);
+        }
+
+        return null;
+      }).then((currentVersionEntry) => {
+        if (!currentVersionEntry || currentVersionEntry.version !== migrations.length) {
+          return this._applyMigrations(
+            connection.version,
+            currentVersionEntry,
+            [versionMigration].concat(migrations)
+          );
+        }
+      })
+    )));
   }
 
-  public async migrate(migrations: Migration[]): Promise<void> {
-    this.model(Version);
-
-    this.connection = await this._openDatabase();
-
-    const hasVersionObjectStore = this.connection.objectStoreNames.contains(VERSION_OBJECT_STORE_NAME);
-    let currentVersionEntry: Version | null = null;
-
-    if (hasVersionObjectStore) {
-      currentVersionEntry = await Version.findByPrimary(1);
-    }
-
-    if (!currentVersionEntry || currentVersionEntry.version !== migrations.length) {
-      await this._applyMigrations(this.connection.version, currentVersionEntry, [
-        versionMigration,
-        ...migrations
-      ]);
-    }
-  }
-
-  public model<T extends { [key in P]: number | string }, M extends Model<T, P, U>, P extends keyof T, U extends keyof T = never>(
+  public model<T extends { [key in P]: number | string }, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
     model: ModelClass<T, M, P, U>
   ): void {
     model.db = this;
   }
 
-  public async transaction<K extends IDBTransactionAllowedMode | null | undefined, ReturnValue = void>(
+  public transaction<K extends IDBTransactionAllowedMode | null | undefined, R = void>(
     store: string | string[],
-    callback: (transaction: IDBTransactionMap[M]) => MaybePromise<ReturnValue>
-  ): Promise<ReturnValue>;
-  public async transaction<K extends IDBTransactionAllowedMode | null | undefined, ReturnValue = void>(
+    callback: (transaction: IDBTransactionMap[M]) => MaybePromise<R>
+  ): Promise<R>;
+  public transaction<K extends IDBTransactionAllowedMode | null | undefined, R = void>(
     store: string | string[],
     mode: K | null | undefined,
-    callback: (transaction: IDBTransactionMap[K extends IDBTransactionAllowedMode ? K : M]) => MaybePromise<ReturnValue>
-  ): Promise<ReturnValue>;
-  public async transaction<K extends IDBTransactionAllowedMode | null | undefined, ReturnValue = void>(
+    callback: (transaction: IDBTransactionMap[K extends IDBTransactionAllowedMode ? K : M]) => MaybePromise<R>
+  ): Promise<R>;
+  public transaction<K extends IDBTransactionAllowedMode | null | undefined, R = void>(
     store: string | string[],
-    mode: K | null | undefined | ((transaction: IDBTransactionMap[K extends IDBTransactionAllowedMode ? K : M]) => MaybePromise<ReturnValue>),
-    callback?: ((transaction: IDBTransactionMap[K extends IDBTransactionAllowedMode ? K : M]) => MaybePromise<ReturnValue>)
-  ): Promise<ReturnValue> {
-    if (typeof mode === 'function') {
-      callback = mode;
-      mode = null;
-    }
+    mode: K | null | undefined | ((transaction: IDBTransactionMap[K extends IDBTransactionAllowedMode ? K : M]) => MaybePromise<R>),
+    callback?: ((transaction: IDBTransactionMap[K extends IDBTransactionAllowedMode ? K : M]) => MaybePromise<R>)
+  ): Promise<R> {
+    return this._executeWithConnection((connection) => promiseTry(() => {
+      if (typeof mode === 'function') {
+        callback = mode;
+        mode = null;
+      }
 
-    const db = await this.getConnection();
-
-    return await callback!(
-      db.transaction(
+      const transaction = connection.transaction(
         store,
         (mode || this.transactionMode) as IDBTransactionAllowedMode
-      ) as IDBTransactionMap[K extends IDBTransactionAllowedMode ? K : M]
-    );
-  }
+      ) as IDBTransactionMap[K extends IDBTransactionAllowedMode ? K : M];
 
-  public async request<T = undefined>(request: IDBRequest): Promise<T | undefined>;
-  public async request<T = undefined>(request: IDBRequest, defaultValue: T): Promise<T>;
-  public async request<T = undefined>(request: IDBRequest, defaultValue?: T): Promise<T | undefined> {
-    return new Promise<T>((resolve, reject) => {
-      request.onsuccess = () => {
-        resolve(request.result || defaultValue);
-      };
-
-      request.onerror = () => {
-        reject(request.error);
-      };
-    });
+      return Promise.all([
+        callback!(transaction),
+        new Promise<void>((resolve) => {
+          transaction.addEventListener('complete', () => {
+            resolve();
+          });
+        })
+      ]).then((result) => result[0]);
+    }));
   }
 }

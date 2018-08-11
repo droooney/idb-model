@@ -4,24 +4,24 @@ import { Migration } from './Database';
 export const VERSION_OBJECT_STORE_NAME = '__version__';
 
 export const versionMigration: Migration = (db) => {
-  try {
+  /* istanbul ignore else */
+  if (!db.objectStoreNames.contains(VERSION_OBJECT_STORE_NAME)) {
     db.createObjectStore(VERSION_OBJECT_STORE_NAME, {
       keyPath: 'id',
       autoIncrement: false
     });
-  } catch (err) {}
+  }
 };
 
-interface IVersion {
+interface VersionAttributes {
   id: number;
   version: number;
 }
 
 // eslint-disable-next-line no-use-before-define
-export interface Version extends IVersion {}
+export interface Version extends VersionAttributes {}
 
-export class Version extends Model<IVersion, 'id'> {
+export class Version extends Model<VersionAttributes, 'id'> {
   static modelName = VERSION_OBJECT_STORE_NAME;
   static primaryKey = 'id' as 'id';
-  static fields = ['id', 'version'];
 }
