@@ -3,10 +3,10 @@
 node_modules
 
 test
-lib
+src
 coverage
 
-*.js
-*.map
+bundle.js
+bundle.js.map
 
 entry.ts
