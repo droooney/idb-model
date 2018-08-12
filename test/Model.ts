@@ -1,6 +1,7 @@
 /* eslint-disable no-use-before-define */
 /* eslint-disable spaced-comment */
 ///<reference types="mocha" />
+///<reference path="./hooks.ts" />
 /* eslint-enable spaced-comment */
 import assert from 'assert';
 

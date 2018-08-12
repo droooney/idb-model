@@ -191,7 +191,7 @@ export class Database<M extends IDBTransactionAllowedMode = 'readonly'> {
     )));
   }
 
-  public model<T extends { [key in P]: number | string }, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+  public model<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
     model: ModelClass<T, M, P, U>
   ): void {
     model.db = this;

@@ -5,8 +5,10 @@ node_modules
 test
 src
 coverage
+scripts
 
 bundle.js
 bundle.js.map
+rollup.config.*
 
 entry.ts

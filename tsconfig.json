@@ -3,6 +3,8 @@
     "module": "commonjs",
     "target": "esnext",
     "moduleResolution": "node",
+    "outDir": "dist/compiled",
+    "declaration": true,
     "typeRoots": [
       "./node_modules/@types",
       "./src/typings"
@@ -14,7 +16,7 @@
     "sourceMap": true
   },
   "include": [
-    "**/*.ts"
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules/**"

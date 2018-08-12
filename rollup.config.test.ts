@@ -38,9 +38,7 @@ const config: RollupWatchOptions = {
       exclude: 'node_modules/**',
       // runtimeHelpers: true,
       presets: [
-        ['@babel/env', {
-          modules: false
-        }],
+        ['@babel/env', { modules: false }],
         '@babel/typescript'
       ],
       plugins: [

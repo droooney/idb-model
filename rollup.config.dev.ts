@@ -14,6 +14,10 @@ const config: RollupWatchOptions = {
   },
   plugins: [
     ts({
+      include: [
+        'src/**/*.ts',
+        'entry.ts'
+      ],
       clean: true,
       tsconfigOverride: {
         compilerOptions: {

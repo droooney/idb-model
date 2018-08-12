@@ -1,19 +1,26 @@
 {
   "name": "idb-model",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "IndexedDB wrapper",
-  "main": "index.js",
+  "main": "dist/idb-model.cjs.js",
+  "module": "dist/idb-model.es.js",
+  "jsnext:main": "dist/idb-model.es.js",
   "scripts": {
+    "build": "npm run clean && npm run build-delcarations && npm run clean && npm run rollup-build && npm run uglify",
+    "build-delcarations": "rimraf index.d.ts && tsc -p . && tsc scripts/mergeDeclarations.ts -m commonjs -t esnext && node scripts/mergeDeclarations.js",
+    "clean": "rimraf dist",
     "lint": "eslint **/*.ts",
+    "rollup-build": "tsc rollup.config.build.ts -m commonjs -t esnext --moduleResolution node && rollup -c rollup.config.build.js",
     "test": "karma start --single-run",
     "test-debug": "karma start --auto-watch",
+    "uglify": "uglifyjs dist/idb-model.umd.min.js -o dist/idb-model.umd.min.js --source-map \"content=dist/idb-model.umd.min.js.map\" --compress --mangle",
     "watch": "tsc rollup.config.dev.ts -m commonjs -t esnext --moduleResolution node && rollup --watch -c rollup.config.dev.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/droooney/idb-model.git"
   },
-  "typings": "index.d.ts",
+  "types": "index.d.ts",
   "keywords": [
     "indexeddb",
     "idb",
@@ -41,6 +48,7 @@
     "karma-mocha": "^1.3.0",
     "karma-rollup-preprocessor": "^6.0.0",
     "mocha": "^5.2.0",
+    "rimraf": "^2.6.2",
     "rollup": "^0.63.5",
     "rollup-plugin-babel": "^4.0.0-beta.7",
     "rollup-plugin-commonjs": "^9.1.4",
@@ -50,6 +58,7 @@
     "rollup-plugin-typescript2": "^0.16.1",
     "ts-node": "^7.0.0",
     "typescript": "^2.9.2",
-    "typescript-eslint-parser": "^17.0.1"
+    "typescript-eslint-parser": "^17.0.1",
+    "uglify-js": "^3.4.7"
   }
 }
