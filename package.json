@@ -10,6 +10,7 @@
     "build-delcarations": "rimraf index.d.ts && tsc -p . && tsc scripts/mergeDeclarations.ts -m commonjs -t esnext && node scripts/mergeDeclarations.js",
     "clean": "rimraf dist",
     "lint": "eslint **/*.ts",
+    "prepublishOnly": "npm run lint && npm run test && npm run build",
     "rollup-build": "tsc rollup.config.build.ts -m commonjs -t esnext --moduleResolution node && rollup -c rollup.config.build.js",
     "test": "karma start --single-run",
     "test-debug": "karma start --auto-watch",
