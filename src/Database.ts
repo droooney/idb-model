@@ -168,17 +168,15 @@ export class Database<M extends IDBTransactionAllowedMode = 'readonly'> {
   }
 
   public migrate(migrations: Migration[]): Promise<void> {
-    return this._executeWithConnection((connection) => promiseTry(() => (
+    return this._executeWithConnection((connection) => (
       promiseTry(() => {
         this.model(Version);
 
         const hasVersionObjectStore = connection.objectStoreNames.contains(VERSION_OBJECT_STORE_NAME);
 
-        if (hasVersionObjectStore) {
-          return Version.findByPrimary(1);
-        }
-
-        return null;
+        return hasVersionObjectStore
+          ? Version.findByPrimary(1)
+          : null;
       }).then((currentVersionEntry) => {
         if (!currentVersionEntry || currentVersionEntry.version !== migrations.length) {
           return this._applyMigrations(
@@ -188,7 +186,7 @@ export class Database<M extends IDBTransactionAllowedMode = 'readonly'> {
           );
         }
       })
-    )));
+    ));
   }
 
   public model<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
