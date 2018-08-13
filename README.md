@@ -476,7 +476,7 @@ The method may be asynchronous, though you should perform only asynchronous acti
 * transaction - the transaction which deletes the record.
 * options - the options with which a save (or update) method was called.
 
-Set this method in your model to add some operations before the record is saved using [Model.bulkSave](#modelbulksaveinstances-options), [Model.update](#modelupdatevaluesfilter-options) or [Model#save](#modelsaveoptions).
+Set this method in your model to add some operations before the record is saved using [Model.create](#modelcreatevalues-options), [Model.bulkCreate](#modelbulkcreatevalues-options), [Model.bulkSave](#modelbulksaveinstances-options), [Model.update](#modelupdatevaluesfilter-options) or [Model#save](#modelsaveoptions).
 The method may be asynchronous, though you should perform only asynchronous actions related to the `transaction`.
 `options.storeNames` from save (or update) methods is used to open a save transaction, so that if you need to do something involving other stores in the hook, specify `options.storeNames` in the corresponding save (or update) method.
 
