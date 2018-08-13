@@ -4,7 +4,7 @@ Small and simple model-based IndexedDB wrapper.
 
 ## What for?
 
-If you have ever dealt with IndexedDB, you've probably noticed that it's API is not really usable in the modern world of promises and `async` functions.
+If you have ever dealt with IndexedDB, you've probably noticed that its API is not really usable in the modern world of promises and `async` functions.
 This library is designed the way that you wouldn't need to touch the weird native API.
 If you only need a promise wrapper for the native API or a simple key-val store, you can take a look at [idb](https://www.npmjs.com/package/idb) or [idb-keyval](https://www.npmjs.com/package/idb-keyval).
 If you need something more advanced `idb-model` is what you need.
@@ -19,9 +19,10 @@ This class is responsible for connecting to the database and opening transaction
 
 ##### new Database([options])
 
-* options.transactionMode (optional) - is either `"readonly"` or `"readwrite"` - default level for [Database#transaction](Database#transaction). Default is `"readonly"`.
-* options.onBlocked (optional) - is just passed to [this](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest/onblocked).
-* options.onVersionChange (optional) - is just passed to [this](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange).
+* options (optional):
+  * options.transactionMode (optional) - is either `"readonly"` or `"readwrite"` - default level for [Database#transaction](#databasetransactionstorenames-mode-callback). Default is `"readonly"`.
+  * options.onBlocked (optional) - is just passed to [this](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest/onblocked).
+  * options.onVersionChange (optional) - is just passed to [this](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/onversionchange).
 
 #### Instance methods
 
@@ -58,7 +59,7 @@ Used primarily internally, and you probably wouldn't need this in most cases, bu
 
 ##### Database#migrate(migrations)
 
-* migrations - An array of functions (may be async) that take two arguments:
+* migrations (required) - An array of functions (may be async) that take two arguments:
   * db - an [IDBDatabase](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase) instance.
   * transaction - a version change transaction. You can pass it to any `Model` method that accepts transaction.
 
@@ -91,7 +92,7 @@ db.model(User);
       // splits fullName into firstName and lastName
 
       await User.update((user) => {
-        [user.firstName, user.lastName] = user.fullName.split('');
+        [user.firstName, user.lastName] = user.fullName.split(' ');
 
         delete user.fullName;
       }, null, { transaction });
@@ -102,7 +103,7 @@ db.model(User);
 
 ##### Database#model(model)
 
-* model - a subclass of `Model`.
+* model (required) - a subclass of `Model`.
 
 Attaches `model` to the database instance.
 
@@ -117,15 +118,15 @@ db.model(User);
 
 ##### Database#transaction(storeNames[, mode], callback)
 
-* storeNames - a string or string array of store names that this transaction is using.
-* mode - `"readonly"` or `"readwrite"`. If not specified then `db.transactionMode` is used that was specified when creating the database.
-* callback - function that takes `transaction` argument that can then be passed to any `Model` method.
+* storeNames (required) - a string or string array of store names that this transaction is using.
+* mode (optional) - `"readonly"` or `"readwrite"`. If not specified then `db.transactionMode` is used that was specified when creating the database.
+* callback (required) - function that takes `transaction` argument that can then be passed to any `Model` method.
 
 Returns `Promise` resolved with the return value of callback when the transaction is completed.
 
 Performs a transaction to the database.
 
-**Note:** Don't `await` asynchronous actions inside the callback as the transaction completes when there's nothing to do. Example:
+**Note:** Don't `await` asynchronous actions inside the callback before doing something with `transaction` as the transaction completes when there's nothing to do. Example:
 
 ```js
 const db = new Database({
@@ -161,7 +162,7 @@ async function pay(payer, receiver, amount) {
 
 ### Model
 
-To manage records in an object store use this class. Don't use this class directly. Use only your custom subclasses. Example:
+To manage records in an object store use this class, but not directly - only through your custom subclasses. Example:
 
 ```js
 class User extends Model {
@@ -181,21 +182,21 @@ const user = new User({
 
 ##### new Model(values)
 
-* values - object with values of the instance. `Model#defaultValues` are assigned to the instance before them.
+* values (required) - object with values of the instance. `Model.defaultValues` is assigned to the instance before them.
 
 #### Static fields
 
-* modelName (required): used to pick `objectStore` from the database.
+* modelName (required): used to select `objectStore` from the database.
 * primaryKey (required): for now `save` and `delete` operations are primary-key-based, so that all of your models have to have a primary key.
-* fields (optional): an array of instance fields to save. By default all object fields are saved. You can use this field to filter out the fields that don't need to be stored.
-* defaultValues (optional): an object of default values.
+* fields (optional): an array of instance fields to save. By default all instance enumerable fields are saved. You can use this field to filter out the fields that don't need to be stored. To customize stored fields more use [Model#toJSON hook](#modeltojson).
+* defaultValues (optional): an object with default values.
 
 #### Static methods
 
 ##### Model.build(values)
 ##### Model.bulkBuild(values[])
 
-* values - object with values of the instance.
+* values (required) - object with values of the instance.
 
 Returns new instance (array of instances for `bulkBuild`).
 
@@ -214,7 +215,8 @@ const users = User.bulkBuild([
 
 ##### Model.clear([options])
 
-* options.transaction (optional) - if present, the operation is performed in this transaction.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
 
 Clears the object store. Returns `Promise`.
 
@@ -226,7 +228,8 @@ Clears the object store. Returns `Promise`.
 
 ##### Model.count([options])
 
-* options.transaction (optional) - if present, the operation is performed in this transaction.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
 
 Counts the records in the object store. Returns `Promise` resolved with the number of records.
 
@@ -239,9 +242,10 @@ Counts the records in the object store. Returns `Promise` resolved with the numb
 ##### Model.create(values[, options])
 ##### Model.bulkCreate(values[][, options])
 
-* values - object with values of the instance.
-* options.transaction (optional) - if present, the operation is performed in this transaction.
-* options.storeNames (optional) - an array of object stores, that may be needed for [beforeSave](Model#beforeSave) hook.
+* values (required) - object with values of the instance.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
+  * options.storeNames (optional) - an array of object stores, that may be needed for [beforeSave](#modelbeforesavetransaction-options) hook.
 
 Creates the instance(s) using `values` and saves it (them) in the object store right away.
 Assigns the new primary key value to the instance after save.
@@ -269,9 +273,10 @@ Returns `Promise` resolved with the instance(s). (In `bulkCreate` all records ar
 
 ##### Model.delete([filter][, options])
 
-* filter - callback that takes an instance. If returns truthy value then the record is deleted, otherwise not.
-* options.transaction (optional) - if present, the operation is performed in this transaction.
-* options.storeNames (optional) - an array of object stores, that may be needed for [beforeDelete](Model#beforeDelete) hook.
+* filter (optional) - callback that takes an instance. If returns truthy value then the record is deleted, otherwise not.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
+  * options.storeNames (optional) - an array of object stores, that may be needed for [beforeDelete](#modelbeforedeletetransaction-options) hook.
 
 Deletes records that match the filter. If no filter specified, all records are deleted. Returns `Promise` resolved with the deleted instances.
 
@@ -287,13 +292,14 @@ Deletes records that match the filter. If no filter specified, all records are d
 
 ##### Model.bulkDelete(instances[][, options])
 
-* instances - instances of the model to delete.
-* options.transaction (optional) - if present, the operation is performed in this transaction.
-* options.storeNames (optional) - an array of object stores, that may be needed for [beforeDelete](Model#beforeDelete) hook.
+* instances (required) - instances of the model to delete.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
+  * options.storeNames (optional) - an array of object stores, that may be needed for [beforeDelete](#modelbeforedeletetransaction-options) hook.
 
 Returns `Promise` resolved with the instances.
 Deletes instances from the object store.
-Under the hood just calls [delete method](Model#delete) for each instance.
+Under the hood just calls [delete method](#modeldeleteoptions) for each instance.
 The main difference is that all records are deleted in one transaction.
 
 ```js
@@ -309,8 +315,9 @@ The main difference is that all records are deleted in one transaction.
 
 ##### Model.findAll([filter][, options])
 
-* filter - callback that takes an instance. If returns truthy value then the record is included, otherwise not.
-* options.transaction (optional) - if present, the operation is performed in this transaction.
+* filter (optional) - callback that takes an instance. If returns truthy value then the record is included, otherwise not.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
 
 ```js
 (async () => {
@@ -324,8 +331,9 @@ Returns `Promise` resolved with an array of instances that match the filter. If 
 
 ##### Model.findOne([filter][, options])
 
-* filter - callback that takes an instance. If returns truthy value then this record is returned.
-* options.transaction (optional) - if present, the operation is performed in this transaction.
+* filter (optional) - callback that takes an instance. If returns truthy value then this record is returned.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
 
 ```js
 (async () => {
@@ -339,8 +347,9 @@ Returns `Promise` resolved with the first instance that matches the filter or `n
 
 ##### Model.findByPrimary(primary[, options])
 
-* primary - value of the primary key field of the record to find.
-* options.transaction (optional) - if present, the operation is performed in this transaction.
+* primary (required) - value of the primary key field of the record to find.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
 
 ```js
 (async () => {
@@ -354,8 +363,9 @@ Returns `Promise` resolved with the instance that matches `primary` or null if n
 
 ##### Model.bulkSave(instances[][, options])
 
-* instances - instances of the model to save.
-* options.transaction (optional) - if present, the operation is performed in this transaction.
+* instances (required) - instances of the model to save.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
 
 ```js
 (async () => {
@@ -374,10 +384,11 @@ Saves multiple instances in one transaction. Returns `Promise` resolved with the
 
 ##### Model.update(values[filter][, options])
 
-* values - either an object with fields to update or a callback that is called with an instance to update. In case of callback **don't** return a new value, rather modify the instance.
-* filter - callback that takes an instance. If returns truthy value then the record is updated, otherwise not.
-* options.transaction (optional) - if present, the operation is performed in this transaction.
-* options.storeNames (optional) - an array of object stores, that may be needed for [beforeSave](Model#beforeDelete) hook.
+* values (required) - either an object with fields to update or a callback that is called with an instance to update. In case of callback **don't** return a new value, rather modify the instance.
+* filter (optional) - callback that takes an instance. If returns truthy value then the record is updated, otherwise not.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
+  * options.storeNames (optional) - an array of object stores, that may be needed for [beforeSave](#modelbeforesavetransaction-options) hook.
 
 Updates records that match the filter. If no filter specified, all records are updated. Returns `Promise` resolved with the updated instances.
 
@@ -404,11 +415,12 @@ Updates records that match the filter. If no filter specified, all records are u
 
 ##### Model#delete([options])
 
-* options.transaction (optional) - if present, the operation is performed in this transaction.
-* options.storeNames (optional) - an array of object stores, that may be needed for [beforeDelete](Model#beforeDelete) hook.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
+  * options.storeNames (optional) - an array of object stores, that may be needed for [beforeDelete](#modelbeforedeletetransaction-options) hook.
 
 Deletes the record using the primary key.
-If the instance doesn't have the primary key field, then the method odes nothing.
+If the instance doesn't have the primary key field, then the method does nothing.
 Returns `Promise` resolved with the instance.
 
 ```js
@@ -421,11 +433,12 @@ Returns `Promise` resolved with the instance.
 
 ##### Model#save([options])
 
-* options.transaction (optional) - if present, the operation is performed in this transaction.
-* options.storeNames (optional) - an array of object stores, that may be needed for [beforeSave](Model#beforeSave) hook.
+* options (optional):
+  * options.transaction (optional) - if present, the operation is performed in this transaction.
+  * options.storeNames (optional) - an array of object stores, that may be needed for [beforeSave](#modelbeforesavetransaction-options) hook.
 
 Saves the record using the primary key.
-The record is updated if the instance has the primary key field, otherwise it's added.
+The record is updated if the instance has the primary key field, otherwise the record is added.
 Returns `Promise` resolved with the instance.
 
 ```js
@@ -454,18 +467,62 @@ Returns `Promise` resolved with the instance.
 * transaction - the transaction which deletes the record.
 * options - the options with which a delete method was called.
 
-Set this method in your model to add some operations before the record is deleted using [Model.delete](Model.delete), [Model.bulkDelete](Model.bulkDelete) or [Model#delete](Model#delete).
+Set this method in your model to add some operations before the record is deleted using [Model.delete](#modeldeletefilter-options), [Model.bulkDelete](#modelbulkdeleteinstances-options) or [Model#delete](#modeldeleteoptions).
 The method may be asynchronous, though you should perform only asynchronous actions related to the `transaction`.
+`options.storeNames` from delete methods is used to open a delete transaction, so that if you need to do something involving other stores in the hook, specify `options.storeNames` in the corresponding delete method.
 
-##### Model#beforeSave(transaction)
+##### Model#beforeSave(transaction, options)
 
 * transaction - the transaction which deletes the record.
-* options - the options with which a save method was called.
+* options - the options with which a save (or update) method was called.
 
-Set this method in your model to add some operations before the record is saved using [Model.bulkSave](Model.bulkSave), [Model.update](Model.update) or [Model#save](Model#save).
+Set this method in your model to add some operations before the record is saved using [Model.bulkSave](#modelbulksaveinstances-options), [Model.update](#modelupdatevaluesfilter-options) or [Model#save](#modelsaveoptions).
 The method may be asynchronous, though you should perform only asynchronous actions related to the `transaction`.
+`options.storeNames` from save (or update) methods is used to open a save transaction, so that if you need to do something involving other stores in the hook, specify `options.storeNames` in the corresponding save (or update) method.
 
 ##### Model#toJSON()
 
 Set this method in your model to customize what is saved to the database returning the desired object.
 If this method is specified `Model.fields` is not used.
+
+## Typescript Usage
+
+Here is an example of a user model:
+
+```typescript
+// you need to create a separate interface to pass it to Model
+interface UserAttributes {
+  id: number;
+  name: string;
+  age: number;
+  job: string;
+}
+
+// you need User to extend UserAttributes, so that you can access your custom fields
+interface User extends UserAttributes {}
+
+// first argument is values interface
+// second argument is optional fields that are not necessary to set when creating an instance
+class User extends Model<UserAttributes, 'id' | 'job'> {
+  static modelName = 'users';
+  // this is a hack so that ts recognizes 'id' as a key of User
+  static primaryKey = 'id' as 'id';
+  // you need to set default values for optional parameters here, except the primaryKey field - this and required fields are optional here
+  static defaultValues = {
+    job: ''
+  };
+}
+```
+
+## Conclusion
+
+1. Also the library exports a small helper - `promisifyRequest`, that takes an [IDBRequest](https://developer.mozilla.org/en-US/docs/Web/API/IDBRequest) instance and "promisifies" it:
+
+    ```
+    promisifyRequest(request[, defaultValue])
+    ```
+
+    Returns a `Promise` resolved with the request result or `defaultValue`. Use this helper if you need some native API requests to be promisified.
+
+2. For now `idb-model` doesn't support [IDBKeyRange API](https://developer.mozilla.org/en-US/docs/Web/API/IDBKeyRange), [IDBIndex API](https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex) and [IDBCursor API](https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor).
+Although the first one and the second one may be useful together, the third one does not seem very useful considering that it's already used internally in some `Model` methods.

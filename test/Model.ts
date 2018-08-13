@@ -928,16 +928,17 @@ describe('Model', () => {
             await this.getAllRecords('users', transaction),
             [{ id: 2, age: 13, name: name2 }]
           );
+
+          await User.delete({ transaction });
+
+          assert.deepStrictEqual(await this.getAllRecords('users', transaction), []);
         }),
         this.addRecords('users', [{ age: 28, name: name3 }])
       ]);
 
       assert.deepStrictEqual(
         await this.getAllRecords('users'),
-        [
-          { id: 2, age: 13, name: name2 },
-          { id: 3, age: 28, name: name3 }
-        ]
+        [{ id: 3, age: 28, name: name3 }]
       );
     });
   });
@@ -1598,13 +1599,14 @@ describe('Model', () => {
             ]
           );
 
-          await User.update({ name: name5 }, ({ age }) => age >= 18, { transaction });
+          await User.update({ age: 80 }, ({ age }) => age >= 18, { transaction });
+          await User.update({ name: name5 }, { transaction });
 
           assert.deepStrictEqual(
             await this.getAllRecords('users', transaction),
             [
-              { id: 1, age: 33, name: name5 },
-              { id: 2, age: 13, name: name2 }
+              { id: 1, age: 80, name: name5 },
+              { id: 2, age: 13, name: name5 }
             ]
           );
         }),
@@ -1614,8 +1616,8 @@ describe('Model', () => {
       assert.deepStrictEqual(
         await this.getAllRecords('users'),
         [
-          { id: 1, age: 33, name: name5 },
-          { id: 2, age: 13, name: name2 },
+          { id: 1, age: 80, name: name5 },
+          { id: 2, age: 13, name: name5 },
           { id: 3, age: 28, name: name3 }
         ]
       );

@@ -215,16 +215,37 @@ export class Model<T, P extends keyof T, U extends keyof T = never> {
   }
 
   public static delete<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>
+  ): Promise<M[]>;
+  public static delete<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
     this: ModelClass<T, M, P, U>,
-    filter?: ((item: M) => boolean | any) | null | undefined,
+    filter: ((item: M) => boolean | any) | null | undefined,
+  ): Promise<M[]>;
+  public static delete<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    options: DeleteOptions
+  ): Promise<M[]>;
+  public static delete<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    filter: ((item: M) => boolean | any) | null | undefined,
+    options: DeleteOptions
+  ): Promise<M[]>;
+  public static delete<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    filter?: ((item: M) => boolean | any) | null | undefined | DeleteOptions,
     options: DeleteOptions = {}
   ): Promise<M[]> {
+    if (filter && typeof filter !== 'function') {
+      options = filter;
+      filter = undefined;
+    }
+
     const instances: M[] = [];
 
     return ((this as any)._openCursor as typeof Model['_openCursor'])((cursor, transaction) => {
       const instance = ((this as any).build as typeof Model['build'])(cursor.value) as any as M;
 
-      if (!filter || filter(instance)) {
+      if (!filter || (filter as (item: M) => boolean | any)(instance)) {
         instances.push(instance);
 
         const onFulfilled = () => (
@@ -288,16 +309,41 @@ export class Model<T, P extends keyof T, U extends keyof T = never> {
 
   public static update<T, K extends keyof T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
     this: ModelClass<T, M, P, U>,
+    values: Pick<T, K> | ((item: M) => void)
+  ): Promise<M[]>;
+  public static update<T, K extends keyof T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
     values: Pick<T, K> | ((item: M) => void),
-    filter?: ((item: M) => boolean | any) | null | undefined,
+    filter: ((item: M) => boolean | any) | null | undefined,
+  ): Promise<M[]>;
+  public static update<T, K extends keyof T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    values: Pick<T, K> | ((item: M) => void),
+    options: DeleteOptions
+  ): Promise<M[]>;
+  public static update<T, K extends keyof T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    values: Pick<T, K> | ((item: M) => void),
+    filter: ((item: M) => boolean | any) | null | undefined,
+    options: DeleteOptions
+  ): Promise<M[]>;
+  public static update<T, K extends keyof T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    values: Pick<T, K> | ((item: M) => void),
+    filter?: ((item: M) => boolean | any) | null | undefined | UpdateOptions,
     options: UpdateOptions = {}
   ): Promise<M[]> {
+    if (filter && typeof filter !== 'function') {
+      options = filter;
+      filter = undefined;
+    }
+
     const instances: M[] = [];
 
     return ((this as any)._openCursor as typeof Model['_openCursor'])((cursor, transaction) => {
       const instance = ((this as any).build as typeof Model['build'])(cursor.value) as any as M;
 
-      if (!filter || filter(instance)) {
+      if (!filter || (filter as (item: M) => boolean | any)(instance)) {
         instances.push(instance);
 
         if (typeof values === 'function') {
