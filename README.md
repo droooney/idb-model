@@ -17,8 +17,9 @@ The library consists of two classes: `Database` and `Model`. You migrate the dat
 
 This class is responsible for connecting to the database and opening transactions to it.
 
-##### new Database([options])
+##### new Database(name, [options])
 
+* name - database name.
 * options (optional):
   * options.transactionMode (optional) - is either `"readonly"` or `"readwrite"` - default level for [Database#transaction](#databasetransactionstorenames-mode-callback). Default is `"readonly"`.
   * options.onBlocked (optional) - is just passed to [this](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest/onblocked).
@@ -71,7 +72,7 @@ Use this function to migrate between different versions of your database.
 But you can `await` some `Model` methods. For example:
 
 ```js
-const db = new Database();
+const db = new Database('db');
 
 class User extends Model {
   static modelName = 'users';
@@ -129,7 +130,7 @@ Performs a transaction to the database.
 **Note:** Don't `await` asynchronous actions inside the callback before doing something with `transaction` as the transaction completes when there's nothing to do. Example:
 
 ```js
-const db = new Database({
+const db = new Database('db', {
   transactionMode: 'readwrite'
 });
 
