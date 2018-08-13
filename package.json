@@ -5,6 +5,10 @@
   "main": "dist/idb-model.cjs.js",
   "module": "dist/idb-model.es.js",
   "jsnext:main": "dist/idb-model.es.js",
+  "files": [
+    "dist",
+    "index.d.ts"
+  ],
   "scripts": {
     "build": "npm run clean && npm run build-delcarations && npm run clean && npm run rollup-build && npm run uglify",
     "build-delcarations": "rimraf index.d.ts && tsc -p . && tsc scripts/mergeDeclarations.ts -m commonjs -t esnext && node scripts/mergeDeclarations.js",
