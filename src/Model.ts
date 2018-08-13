@@ -218,11 +218,15 @@ export class Model<T, P extends keyof T, U extends keyof T = never> {
     this: ModelClass<T, M, P, U>,
     filter?: ((item: M) => boolean | any) | null | undefined,
     options: DeleteOptions = {}
-  ): Promise<void> {
+  ): Promise<M[]> {
+    const instances: M[] = [];
+
     return ((this as any)._openCursor as typeof Model['_openCursor'])((cursor, transaction) => {
       const instance = ((this as any).build as typeof Model['build'])(cursor.value) as any as M;
 
       if (!filter || filter(instance)) {
+        instances.push(instance);
+
         const onFulfilled = () => (
           promisifyRequest(cursor.delete())
         );
@@ -233,7 +237,7 @@ export class Model<T, P extends keyof T, U extends keyof T = never> {
 
         return onFulfilled();
       }
-    }, assign({}, options, { readOnly: false }));
+    }, assign({}, options, { readOnly: false })).then(() => instances);
   }
 
   public static findAll<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
@@ -287,11 +291,15 @@ export class Model<T, P extends keyof T, U extends keyof T = never> {
     values: Pick<T, K> | ((item: M) => void),
     filter?: ((item: M) => boolean | any) | null | undefined,
     options: UpdateOptions = {}
-  ): Promise<void> {
+  ): Promise<M[]> {
+    const instances: M[] = [];
+
     return ((this as any)._openCursor as typeof Model['_openCursor'])((cursor, transaction) => {
       const instance = ((this as any).build as typeof Model['build'])(cursor.value) as any as M;
 
       if (!filter || filter(instance)) {
+        instances.push(instance);
+
         if (typeof values === 'function') {
           values(instance);
         } else {
@@ -308,7 +316,7 @@ export class Model<T, P extends keyof T, U extends keyof T = never> {
 
         return onFulfilled();
       }
-    }, assign({}, options, { readOnly: false }));
+    }, assign({}, options, { readOnly: false })).then(() => instances);
   }
 
   public constructor(values: Values<T, U>) {
