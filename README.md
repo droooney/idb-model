@@ -62,14 +62,16 @@ Used primarily internally, and you probably wouldn't need this in most cases, bu
 
 * migrations (required) - An array of functions (may be async) that take two arguments:
   * db - an [IDBDatabase](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase) instance.
-  * transaction - a version change transaction. You can pass it to any `Model` method that accepts transaction.
+  * transaction - a version change [transaction](https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction). You can pass it to any `Model` method that accepts transaction.
 
 Returns `Promise`.
 
 Use this function to migrate between different versions of your database.
 
 **Note:** if a migration is an `async` function you can't really fetch resources or perform any other non-idb-related async actions because IndexedDB transactions auto-close when there is nothing to do.
-But you can `await` some `Model` methods. For example:
+But you can `await` some `Model` methods, but **only** if you're passing the `transaction` parameter to them.
+Also if you're going to use some native transaction API in a migration, use only the `transaction` from the parameter.
+For example:
 
 ```js
 const db = new Database('db');
@@ -121,7 +123,7 @@ db.model(User);
 
 * storeNames (required) - a string or string array of store names that this transaction is using.
 * mode (optional) - `"readonly"` or `"readwrite"`. If not specified then `db.transactionMode` is used that was specified when creating the database.
-* callback (required) - function that takes `transaction` argument that can then be passed to any `Model` method.
+* callback (required) - function that takes [transaction](https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction) argument that can then be passed to any `Model` method.
 
 Returns `Promise` resolved with the return value of callback when the transaction is completed.
 
