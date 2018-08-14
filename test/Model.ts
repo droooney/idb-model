@@ -1066,7 +1066,7 @@ describe('Model', () => {
           await this.addRecords('users', [{ name: name2 }], transaction);
 
           assert.deepStrictEqual(
-            (await User.findAll(null, { transaction })).map((user) => user.toJSON()),
+            (await User.findAll({ transaction })).map((user) => user.toJSON()),
             [
               { id: 1, name: name1 },
               { id: 2, name: name2 }
@@ -1194,7 +1194,7 @@ describe('Model', () => {
         this.db.transaction('users', 'readwrite', async (transaction) => {
           await this.addRecords('users', [{ name: name1 }], transaction);
 
-          const user1 = await User.findOne(({ id }) => id === 1, { transaction });
+          const user1 = await User.findOne({ transaction });
 
           assert(user1 instanceof User);
           assert.deepStrictEqual(user1!.toJSON(), { id: 1, name: name1 });

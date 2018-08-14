@@ -262,32 +262,74 @@ export class Model<T, P extends keyof T, U extends keyof T = never> {
   }
 
   public static findAll<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>
+  ): Promise<M[]>;
+  public static findAll<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
     this: ModelClass<T, M, P, U>,
-    filter?: ((item: M) => boolean | any) | null | undefined,
+    filter: ((item: M) => boolean | any) | null | undefined
+  ): Promise<M[]>;
+  public static findAll<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    options: FindOptions
+  ): Promise<M[]>;
+  public static findAll<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    filter: ((item: M) => boolean | any) | null | undefined,
+    options: FindOptions
+  ): Promise<M[]>;
+  public static findAll<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    filter?: ((item: M) => boolean | any) | null | undefined | FindOptions,
     options: FindOptions = {}
   ): Promise<M[]> {
+    if (filter && typeof filter !== 'function') {
+      options = filter;
+      filter = undefined;
+    }
+
     const instances: M[] = [];
 
     return ((this as any)._openCursor as typeof Model['_openCursor'])((cursor) => {
       const instance = ((this as any).build as typeof Model['build'])(cursor.value) as any as M;
 
-      if (!filter || filter(instance)) {
+      if (!filter || (filter as (item: M) => boolean | any)(instance)) {
         instances.push(instance);
       }
     }, options).then(() => instances);
   }
 
   public static findOne<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>
+  ): Promise<M | null>;
+  public static findOne<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
     this: ModelClass<T, M, P, U>,
-    filter?: ((item: M) => boolean | any) | null | undefined,
+    filter: ((item: M) => boolean | any) | null | undefined
+  ): Promise<M | null>;
+  public static findOne<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    options: FindOptions
+  ): Promise<M | null>;
+  public static findOne<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    filter: ((item: M) => boolean | any) | null | undefined,
+    options: FindOptions
+  ): Promise<M | null>;
+  public static findOne<T, M extends Model<T, P, U> & T, P extends keyof T, U extends keyof T = never>(
+    this: ModelClass<T, M, P, U>,
+    filter?: ((item: M) => boolean | any) | null | undefined | FindOptions,
     options: FindOptions = {}
   ): Promise<M | null> {
+    if (filter && typeof filter !== 'function') {
+      options = filter;
+      filter = undefined;
+    }
+
     let instance: M | null = null;
 
     return ((this as any)._openCursor as typeof Model['_openCursor'])((cursor, _transaction, stop) => {
       const item = ((this as any).build as typeof Model['build'])(cursor.value) as any as M;
 
-      if (!filter || filter(item)) {
+      if (!filter || (filter as (item: M) => boolean | any)(item)) {
         instance = item;
 
         stop();
