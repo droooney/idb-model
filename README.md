@@ -293,9 +293,9 @@ Deletes records that match the filter. If no filter specified, all records are d
 })();
 ```
 
-##### Model.bulkDelete(instances[][, options])
+##### Model.bulkDelete(instances[, options])
 
-* instances (required) - instances of the model to delete.
+* instances (required) - an array of instances of the model to delete.
 * options (optional):
   * options.transaction (optional) - if present, the operation is performed in this transaction.
   * options.storeNames (optional) - an array of object stores, that may be needed for [beforeDelete](#modelbeforedeletetransaction-options) hook.
@@ -364,9 +364,9 @@ Returns `Promise` resolved with the first instance that matches the filter or `n
 
 Returns `Promise` resolved with the instance that matches `primary` or null if no records match.
 
-##### Model.bulkSave(instances[][, options])
+##### Model.bulkSave(instances[, options])
 
-* instances (required) - instances of the model to save.
+* instances (required) - an array of instances of the model to save.
 * options (optional):
   * options.transaction (optional) - if present, the operation is performed in this transaction.
 
