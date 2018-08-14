@@ -96,7 +96,7 @@ db.model(User);
         [user.firstName, user.lastName] = user.fullName.split(' ');
 
         delete user.fullName;
-      }, null, { transaction });
+      }, { transaction });
     }
   ]);
 })();
