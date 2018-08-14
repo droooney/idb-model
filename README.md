@@ -17,9 +17,9 @@ The library consists of two classes: `Database` and `Model`. You migrate the dat
 
 This class is responsible for connecting to the database and opening transactions to it.
 
-##### new Database(name, [options])
+##### new Database(name[, options])
 
-* name - database name.
+* name (required) - database name.
 * options (optional):
   * options.transactionMode (optional) - is either `"readonly"` or `"readwrite"` - default level for [Database#transaction](#databasetransactionstorenames-mode-callback). Default is `"readonly"`.
   * options.onBlocked (optional) - is just passed to [this](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest/onblocked).
