@@ -11,7 +11,8 @@ If you need something more advanced `idb-model` is what you need.
 
 ## Usage
 
-The library consists of two classes: `Database` and `Model`. You migrate the database and perform transaction through an instance of `Database` and you manage records in an object store through your custom subclasses of `Model` (if you're familiar with [sequelize](https://www.npmjs.com/package/sequelize) this should be easy to understand as `idb-model` is inspired by it).
+The library consists of two classes: `Database` and `Model`.
+You migrate the database and perform transactions through an instance of `Database` and you manage records in an object store through your custom subclasses of `Model` (if you're familiar with [sequelize](https://www.npmjs.com/package/sequelize) this should be easy to understand as `idb-model` is inspired by it).
 
 ### Database
 
