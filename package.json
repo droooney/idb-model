@@ -1,6 +1,6 @@
 {
   "name": "idb-model",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "IndexedDB wrapper",
   "main": "dist/idb-model.cjs.js",
   "module": "dist/idb-model.es.js",
