@@ -30,6 +30,8 @@
     "indexeddb",
     "idb",
     "model",
+    "promise",
+    "async",
     "db",
     "database"
   ],
